@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: gather-event-registration
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/events
+    autoDeployTrigger: commit
