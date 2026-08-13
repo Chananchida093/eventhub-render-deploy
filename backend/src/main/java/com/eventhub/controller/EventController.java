@@ -11,7 +11,14 @@ import java.util.List;
 public class EventController {
     private final EventService service;
     public EventController(EventService service) { this.service = service; }
-    @GetMapping("/events") public List<EventDto> events(Principal p) { return service.list(p); }
+    @GetMapping("/events")
+    public EventPageDto events(Principal p,
+                               @RequestParam(defaultValue = "0") int page,
+                               @RequestParam(defaultValue = "20") int size,
+                               @RequestParam(defaultValue = "") String search,
+                               @RequestParam(defaultValue = "ALL") String status) {
+        return service.list(p, page, size, search, status);
+    }
     @GetMapping("/events/{id}") public EventDto event(@PathVariable Long id, Principal p) { return service.get(id, p); }
     @PostMapping("/events/{id}/registrations") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void register(@PathVariable Long id, Principal p) { service.register(id, p); }
@@ -19,4 +26,3 @@ public class EventController {
     public void cancel(@PathVariable Long id, Principal p) { service.cancel(id, p); }
     @GetMapping("/registrations/me") public List<RegistrationDto> mine(Principal p) { return service.mine(p); }
 }
-

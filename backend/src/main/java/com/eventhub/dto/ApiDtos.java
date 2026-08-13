@@ -3,7 +3,7 @@ package com.eventhub.dto;
 import com.eventhub.model.*;
 import jakarta.validation.constraints.*;
 import java.time.LocalDateTime;
-import java.util.Set;
+import java.util.List;
 
 public final class ApiDtos {
     private ApiDtos() {}
@@ -23,9 +23,17 @@ public final class ApiDtos {
             return new EventDto(event.getId(), event.getTitle(), event.getDescription(), event.getLocation(),
                     event.getStartsAt(), event.getCapacity(), count, spots, status, registered);
         }
+        public static EventDto from(EventListRow row) {
+            long spots = Math.max(0, row.capacity() - row.registeredCount());
+            String status = !row.startsAt().isAfter(LocalDateTime.now()) ? "ENDED" : spots == 0 ? "FULL" : "OPEN";
+            return new EventDto(row.id(), row.title(), row.description(), row.location(), row.startsAt(),
+                    row.capacity(), row.registeredCount(), spots, status, row.registered());
+        }
     }
+    public record EventPageDto(List<EventDto> items, int page, int size, long totalElements,
+                               int totalPages, boolean hasNext, boolean hasPrevious,
+                               long totalOpenEvents, long totalRegistrations) {}
     public record RegistrationDto(Long id, LocalDateTime registeredAt, EventDto event) {}
     public record AttendeeDto(Long id, String name, String email, LocalDateTime registeredAt) {}
     public record ErrorDto(String message) {}
 }
-

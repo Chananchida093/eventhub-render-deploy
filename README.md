@@ -46,6 +46,16 @@ Then open [http://localhost:5173](http://localhost:5173).
 - Switch between Thai and English from the header on desktop or mobile
 - Pessimistic database locking prevents overbooking under concurrent requests
 
+## Scalable event listing
+
+The event list is paginated and filtered on the server:
+
+```text
+GET /api/events?page=0&size=20&search=boot&status=OPEN
+```
+
+The response includes page metadata (`totalElements`, `totalPages`, `hasNext`) for the UI. Each page is loaded with one aggregate projection query that returns registration counts and the signed-in user's registration state together; `size` is capped at 100 to protect the API from oversized requests.
+
 ## Verification
 
 ```bash
@@ -53,7 +63,7 @@ cd backend && ./mvnw test
 cd frontend && npm run build
 ```
 
-The backend suite covers capacity limits, duplicate registration, cancellation, automatic closing, and capacity regression protection.
+The backend suite covers capacity limits, duplicate registration, cancellation, automatic closing, capacity regression protection, paginated projection results, and server-side status filtering.
 
 ## Render deployment
 

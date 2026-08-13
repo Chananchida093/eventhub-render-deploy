@@ -11,7 +11,11 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  events: () => request('/api/events'),
+  events: ({ page = 0, size = 20, search = '', status = 'ALL' } = {}) => {
+    const params = new URLSearchParams({ page, size, status })
+    if (search.trim()) params.set('search', search.trim())
+    return request(`/api/events?${params.toString()}`)
+  },
   me: () => request('/api/auth/me'),
   login: (data) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(data) }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
@@ -23,4 +27,3 @@ export const api = {
   deleteEvent: (id) => request(`/api/admin/events/${id}`, { method: 'DELETE' }),
   attendees: (id) => request(`/api/admin/events/${id}/attendees`),
 }
-

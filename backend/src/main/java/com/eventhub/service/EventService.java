@@ -1,8 +1,12 @@
 package com.eventhub.service;
 
 import com.eventhub.dto.ApiDtos.*;
+import com.eventhub.dto.EventListRow;
 import com.eventhub.model.*;
 import com.eventhub.repository.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,10 +24,20 @@ public class EventService {
     }
 
     @Transactional(readOnly = true)
-    public List<EventDto> list(Principal principal) {
-        Long userId = principal == null ? null : currentUser(principal).getId();
-        return events.findAll().stream().sorted(Comparator.comparing(Event::getStartsAt))
-                .map(e -> dto(e, userId)).toList();
+    public EventPageDto list(Principal principal, int page, int size, String search, String status) {
+        UserAccount viewer = principal == null ? null : currentUser(principal);
+        Long userId = viewer == null ? null : viewer.getId();
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(Math.max(1, size), 100);
+        String safeSearch = search == null || search.isBlank() ? "" : "%" + search.trim().toLowerCase(Locale.ROOT) + "%";
+        String safeStatus = normalizeStatus(status);
+        Pageable pageable = PageRequest.of(safePage, safeSize);
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        Page<EventListRow> result = events.search(userId, safeSearch, safeStatus, now, pageable);
+        boolean admin = viewer != null && viewer.getRole() == Role.ADMIN;
+        return new EventPageDto(result.getContent().stream().map(EventDto::from).toList(), result.getNumber(),
+                result.getSize(), result.getTotalElements(), result.getTotalPages(), result.hasNext(), result.hasPrevious(),
+                admin ? events.countOpen(now) : 0, admin ? registrations.count() : 0);
     }
 
     @Transactional(readOnly = true)
@@ -90,6 +104,11 @@ public class EventService {
         return EventDto.from(event, registrations.countByEventId(event.getId()),
                 userId != null && registrations.existsByUserIdAndEventId(userId, event.getId()));
     }
+    private String normalizeStatus(String status) {
+        if (status == null || status.isBlank()) return "ALL";
+        String normalized = status.trim().toUpperCase(Locale.ROOT);
+        return Set.of("ALL", "OPEN", "FULL", "ENDED", "REGISTERED").contains(normalized) ? normalized : "ALL";
+    }
     public UserAccount currentUser(Principal principal) {
         if (principal == null) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Login required");
         return users.findByEmail(principal.getName()).orElseThrow(() -> notFound("User not found"));
@@ -97,4 +116,3 @@ public class EventService {
     private ResponseStatusException notFound(String message) { return new ResponseStatusException(HttpStatus.NOT_FOUND, message); }
     private ResponseStatusException conflict(String message) { return new ResponseStatusException(HttpStatus.CONFLICT, message); }
 }
-

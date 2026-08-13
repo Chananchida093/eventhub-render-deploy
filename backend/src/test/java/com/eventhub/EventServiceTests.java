@@ -1,6 +1,7 @@
 package com.eventhub;
 
 import com.eventhub.dto.ApiDtos.EventRequest;
+import com.eventhub.dto.ApiDtos.EventPageDto;
 import com.eventhub.model.*;
 import com.eventhub.repository.*;
 import com.eventhub.service.EventService;
@@ -69,6 +70,33 @@ class EventServiceTests {
 
         EventRequest invalid = new EventRequest("Capacity event", "Test", "Room 4", LocalDateTime.now().plusDays(1), 0);
         assertThatThrownBy(() -> service.update(event.getId(), invalid)).isInstanceOf(ResponseStatusException.class);
+    }
+
+    @Test
+    void eventListUsesOnePaginatedProjectionWithRegistrationState() {
+        UserAccount user = users.save(new UserAccount("list@test.local", "unused", "List User", Role.USER));
+        Event first = events.save(new Event("NPlusOne regression workshop", "Architecture", "Lab", LocalDateTime.now().plusDays(2), 5));
+        events.save(new Event("Pagination regression workshop", "Interfaces", "Studio", LocalDateTime.now().plusDays(3), 5));
+        service.register(first.getId(), principal(user));
+
+        EventPageDto result = service.list(principal(user), 0, 1, "nplusone", "ALL");
+
+        assertThat(result.items()).hasSize(1);
+        assertThat(result.totalElements()).isEqualTo(1);
+        assertThat(result.totalPages()).isEqualTo(1);
+        assertThat(result.items().getFirst().registered()).isTrue();
+        assertThat(result.items().getFirst().registeredCount()).isEqualTo(1);
+    }
+
+    @Test
+    void eventListFiltersOpenEventsOnTheServer() {
+        Event open = events.save(new Event("Open event", "Test", "Room", LocalDateTime.now().plusDays(1), 2));
+        Event ended = events.save(new Event("Ended event", "Test", "Room", LocalDateTime.now().minusMinutes(1), 2));
+
+        EventPageDto result = service.list(null, 0, 20, "", "OPEN");
+
+        assertThat(result.items()).extracting(item -> item.id()).contains(open.getId());
+        assertThat(result.items()).extracting(item -> item.id()).doesNotContain(ended.getId());
     }
 
     private Principal principal(UserAccount user) { return user::getEmail; }
