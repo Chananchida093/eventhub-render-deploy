@@ -1,0 +1,14 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#091C35"/>
+  <circle cx="922" cy="118" r="260" fill="#163B72"/>
+  <circle cx="922" cy="118" r="170" fill="#1D5BA1" fill-opacity=".56"/>
+  <path d="M0 598C202 532 282 604 421 513C559 422 710 491 822 390C969 258 1080 340 1200 232V800H0V598Z" fill="#0F4C81"/>
+  <path d="M0 678C150 600 312 682 455 598C641 488 758 611 901 494C1035 384 1114 462 1200 406V800H0V678Z" fill="#1FA5A3" fill-opacity=".65"/>
+  <path d="M214 437C270 319 380 287 500 334C579 365 646 345 722 265" stroke="#C6F25B" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="722" cy="265" r="24" fill="#FF7A59"/>
+  <text x="120" y="142" fill="#C6F25B" font-family="Arial, sans-serif" font-size="30" font-weight="700" letter-spacing="7">ENGINEERING / 01</text>
+  <text x="120" y="545" fill="#FFFDF9" font-family="Arial, sans-serif" font-size="76" font-weight="800">SPRING BOOT</text>
+  <text x="124" y="630" fill="#FFFDF9" font-family="Arial, sans-serif" font-size="76" font-weight="800">AT SCALE</text>
+  <rect x="968" y="590" width="92" height="92" rx="46" fill="#FF7A59"/>
+  <path d="M994 636L1016 658L1037 614" stroke="#FFFDF9" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

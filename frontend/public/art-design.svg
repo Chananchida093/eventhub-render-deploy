@@ -1,0 +1,15 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="800" fill="#F2EDE7"/>
+  <circle cx="1000" cy="145" r="250" fill="#E9B7FF"/>
+  <circle cx="1070" cy="80" r="150" fill="#A871FF" fill-opacity=".8"/>
+  <path d="M0 680C170 560 312 622 442 540C595 444 720 506 836 414C967 310 1096 344 1200 266V800H0V680Z" fill="#221555"/>
+  <path d="M0 722C173 617 311 690 468 585C620 484 744 590 899 476C1026 383 1127 432 1200 378V800H0V722Z" fill="#6842D9" fill-opacity=".78"/>
+  <rect x="132" y="160" width="450" height="288" rx="28" fill="#FFFDF9" stroke="#221555" stroke-width="4"/>
+  <path d="M196 372L284 260L352 323L452 216L530 373" stroke="#FF7A59" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="292" cy="235" r="30" fill="#FFCC63"/>
+  <text x="132" y="115" fill="#221555" font-family="Arial, sans-serif" font-size="32" font-weight="700" letter-spacing="6">DESIGN LAB</text>
+  <text x="136" y="530" fill="#FFFDF9" font-family="Arial, sans-serif" font-size="82" font-weight="800">MAKE IT</text>
+  <text x="136" y="620" fill="#FFFDF9" font-family="Arial, sans-serif" font-size="82" font-weight="800">CLEAR.</text>
+  <circle cx="1014" cy="638" r="56" fill="#C6F25B"/>
+  <path d="M990 638H1038M1014 614V662" stroke="#221555" stroke-width="8" stroke-linecap="round"/>
+</svg>
