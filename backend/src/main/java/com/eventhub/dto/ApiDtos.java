@@ -8,6 +8,9 @@ import java.util.List;
 public final class ApiDtos {
     private ApiDtos() {}
     public record LoginRequest(@Email String email, @NotBlank String password) {}
+    public record SignupRequest(@NotBlank @Size(min = 2, max = 80) String name,
+                                @NotBlank @Email String email,
+                                @NotBlank @Size(min = 8, max = 72) String password) {}
     public record UserDto(Long id, String name, String email, Role role) {
         public static UserDto from(UserAccount user) { return new UserDto(user.getId(), user.getName(), user.getEmail(), user.getRole()); }
     }
