@@ -57,7 +57,18 @@ const eventArtwork = {
   'Accessibility Testing Lab': '/art-accessibility.svg',
 }
 function imageFor(event) { return eventArtwork[event?.title] ?? '/art-design.svg' }
-function categoryLabel(category, locale) { return t(locale, `category${category?.charAt(0)}${category?.slice(1).toLowerCase()}`) }
+function categoryLabel(category, locale) {
+  const normalized = String(category || 'COMMUNITY').toUpperCase()
+  return t(locale, `category${normalized.charAt(0)}${normalized.slice(1).toLowerCase()}`)
+}
+
+// Older API deployments do not include ticketTypes yet. Treat those events as
+// free general-admission events so discovery and registration remain usable.
+function ticketTypesFor(event) {
+  if (Array.isArray(event?.ticketTypes) && event.ticketTypes.length > 0) return event.ticketTypes
+  return [{ id: 'general-admission', name: 'General admission', description: '', price: 0, remaining: event?.spotsLeft ?? event?.capacity ?? 0, capacity: event?.capacity ?? 0 }]
+}
+function hasFreeAdmission(event) { return ticketTypesFor(event).some(ticket => Number(ticket.price) === 0) }
 
 const DEFAULT_EVENT_PARAMS = { page: 0, size: 20, search: '', category: 'ALL', status: 'ALL' }
 const EMPTY_EVENT_PAGE = { items: [], page: 0, size: 20, totalElements: 0, totalPages: 0, hasNext: false, hasPrevious: false, totalOpenEvents: 0, totalRegistrations: 0 }
@@ -188,10 +199,10 @@ function Discover({ page, params, loading, user, onRegister, onViewDetail, onPar
   const featured = spotlightEvents[0] ?? events[0]
   const ticketChoices = events.reduce((sum, event) => sum + (event.ticketTypes?.length || 0), 0)
   const ticketsAvailable = events.reduce((sum, event) => sum + event.spotsLeft, 0)
-  const freeEventCount = events.filter(event => event.status === 'OPEN' && event.ticketTypes?.some(ticket => Number(ticket.price) === 0)).length
+  const freeEventCount = events.filter(event => event.status === 'OPEN' && hasFreeAdmission(event)).length
   const categoryOptions = ['ALL', 'TECH', 'DESIGN', 'CAREER', 'COMMUNITY']
   const recommended = events.filter(event => event.status === 'OPEN').slice(0, 4)
-  const freeEvents = events.filter(event => event.status === 'OPEN' && event.ticketTypes?.some(ticket => Number(ticket.price) === 0)).slice(0, 2)
+  const freeEvents = events.filter(event => event.status === 'OPEN' && hasFreeAdmission(event)).slice(0, 2)
   const comingSoon = events.filter(event => event.status === 'OPEN').slice(0, 2)
 
   useEffect(() => {
@@ -326,7 +337,7 @@ function formatPrice(value, locale) {
   if (Number(value) === 0) return t(locale, 'free')
   return new Intl.NumberFormat(locale === 'th' ? 'th-TH' : 'en-US', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(Number(value))
 }
-function cheapestPrice(event) { return Math.min(...(event.ticketTypes || []).map(item => Number(item.price)), 0) }
+function cheapestPrice(event) { return Math.min(...ticketTypesFor(event).map(item => Number(item.price)), 0) }
 
 function Pagination({ page, onChange, locale }) {
   if (page.totalPages <= 1) return null
@@ -363,7 +374,7 @@ function EventDetailPage({ event, onBack, onRegister, locale }) {
   return <section className="event-page">
     <div className="event-page-top container"><button className="back-link" onClick={onBack}><ArrowLeft size={16} /> {t(locale, 'backToEvents')}</button><span>{t(locale, 'eventDetails')}</span></div>
     <div className="event-page-hero"><img src={imageFor(event)} alt={copy.title} /><div className="event-page-hero-shade" /><div className="event-page-hero-content container"><Status event={event} locale={locale} /><p>{formatDate(event.startsAt, locale)} · {formatTime(event.startsAt, locale)}</p><h1>{copy.title}</h1><span><MapPin size={16} /> {copy.location}</span></div></div>
-    <div className="event-page-content container"><main className="event-page-main"><section className="event-page-intro"><span className="eyebrow">{t(locale, 'eventOverview')}</span><p>{copy.description}</p></section><section className="event-page-facts"><div><Clock3 size={19} /><span><small>{t(locale, 'dateTime')}</small><strong>{formatDate(event.startsAt, locale)} · {formatTime(event.startsAt, locale)}</strong></span></div><div><MapPin size={19} /><span><small>{t(locale, 'location')}</small><strong>{copy.location}</strong></span></div><div><Users size={19} /><span><small>{t(locale, 'capacity')}</small><strong>{t(locale, 'attendeeCount', { count: event.registeredCount, capacity: event.capacity })}</strong></span></div></section><section className="event-long-copy"><span className="eyebrow">{t(locale, 'eventDetails')}</span><h2>{t(locale, 'eventOverview')}</h2><p>{copy.description}</p><p>{locale === 'th' ? 'มาร่วมเรียนรู้จากคนที่ลงมือทำจริง แลกเปลี่ยนมุมมองกับผู้เข้าร่วม และเก็บประสบการณ์ที่นำไปใช้ต่อได้หลังจบงาน' : 'Join people who are making things happen, exchange perspectives with fellow attendees, and leave with ideas you can use after the event.'}</p></section><button className="detail-section-toggle" onClick={() => setOrganizerOpen(open => !open)}><span><Users size={18} /> {t(locale, 'organizerLabel')}</span><strong>{organizerOpen ? t(locale, 'hideOrganizer') : t(locale, 'viewOrganizer')} <ChevronRight size={17} /></strong></button>{organizerOpen && <div className="organizer-panel"><div className="organizer-avatar">G</div><div><span className="eyebrow">{t(locale, 'organizerLabel')}</span><h3>{t(locale, 'organizerName')}</h3><p>{t(locale, 'organizerBody')}</p></div></div>}</main><aside className="event-page-aside"><div className="event-seat-card"><span>{t(locale, 'availability')}</span><strong>{t(locale, 'availabilityLabel', { count: event.spotsLeft })}</strong><small>{t(locale, 'attendeeCount', { count: event.registeredCount, capacity: event.capacity })}</small></div><button className="detail-section-toggle" onClick={() => setTicketsOpen(open => !open)}><span><TicketCheck size={18} /> {t(locale, ticketsOpen ? 'hideTickets' : 'viewTickets')}</span><ChevronRight size={17} /></button>{ticketsOpen && <div className="page-tickets">{(event.ticketTypes || []).map(ticket => <div key={ticket.id}><span><strong>{ticket.name}</strong><small>{ticket.description || t(locale, 'ticketTypes')}</small></span><b>{formatPrice(ticket.price, locale)}</b></div>)}</div>}<EventAction event={event} onRegister={onRegister} locale={locale} /></aside></div>
+    <div className="event-page-content container"><main className="event-page-main"><section className="event-page-intro"><span className="eyebrow">{t(locale, 'eventOverview')}</span><p>{copy.description}</p></section><section className="event-page-facts"><div><Clock3 size={19} /><span><small>{t(locale, 'dateTime')}</small><strong>{formatDate(event.startsAt, locale)} · {formatTime(event.startsAt, locale)}</strong></span></div><div><MapPin size={19} /><span><small>{t(locale, 'location')}</small><strong>{copy.location}</strong></span></div><div><Users size={19} /><span><small>{t(locale, 'capacity')}</small><strong>{t(locale, 'attendeeCount', { count: event.registeredCount, capacity: event.capacity })}</strong></span></div></section><section className="event-long-copy"><span className="eyebrow">{t(locale, 'eventDetails')}</span><h2>{t(locale, 'eventOverview')}</h2><p>{copy.description}</p><p>{locale === 'th' ? 'มาร่วมเรียนรู้จากคนที่ลงมือทำจริง แลกเปลี่ยนมุมมองกับผู้เข้าร่วม และเก็บประสบการณ์ที่นำไปใช้ต่อได้หลังจบงาน' : 'Join people who are making things happen, exchange perspectives with fellow attendees, and leave with ideas you can use after the event.'}</p></section><button className="detail-section-toggle" onClick={() => setOrganizerOpen(open => !open)}><span><Users size={18} /> {t(locale, 'organizerLabel')}</span><strong>{organizerOpen ? t(locale, 'hideOrganizer') : t(locale, 'viewOrganizer')} <ChevronRight size={17} /></strong></button>{organizerOpen && <div className="organizer-panel"><div className="organizer-avatar">G</div><div><span className="eyebrow">{t(locale, 'organizerLabel')}</span><h3>{t(locale, 'organizerName')}</h3><p>{t(locale, 'organizerBody')}</p></div></div>}</main><aside className="event-page-aside"><div className="event-seat-card"><span>{t(locale, 'availability')}</span><strong>{t(locale, 'availabilityLabel', { count: event.spotsLeft })}</strong><small>{t(locale, 'attendeeCount', { count: event.registeredCount, capacity: event.capacity })}</small></div><button className="detail-section-toggle" onClick={() => setTicketsOpen(open => !open)}><span><TicketCheck size={18} /> {t(locale, ticketsOpen ? 'hideTickets' : 'viewTickets')}</span><ChevronRight size={17} /></button>{ticketsOpen && <div className="page-tickets">{ticketTypesFor(event).map(ticket => <div key={ticket.id}><span><strong>{ticket.name || (locale === 'th' ? 'บัตรทั่วไป' : 'General admission')}</strong><small>{ticket.description || t(locale, 'ticketTypes')}</small></span><b>{formatPrice(ticket.price, locale)}</b></div>)}</div>}<EventAction event={event} onRegister={onRegister} locale={locale} /></aside></div>
     <div className="event-page-bottom container"><button className="button button-outline" onClick={() => setTicketsOpen(true)}><TicketCheck size={17} /> {t(locale, 'viewTickets')}</button><EventAction event={event} onRegister={onRegister} locale={locale} /></div>
   </section>
 }
@@ -374,13 +385,13 @@ function EventDetailModal({ event, onClose, onRegister, locale }) {
     <article className="event-detail-modal" role="dialog" aria-modal="true" aria-labelledby="event-detail-title" onMouseDown={e => e.stopPropagation()}>
       <button className="modal-close" onClick={onClose} aria-label={t(locale, 'closeDetails')}><X size={19} /></button>
       <div className="event-detail-hero"><img src={imageFor(event)} alt={copy.title} /><div className="event-detail-shade" /><div className="event-detail-hero-copy"><Status event={event} locale={locale} /><p>{formatDate(event.startsAt, locale)} · {formatTime(event.startsAt, locale)}</p><h1 id="event-detail-title">{copy.title}</h1><span><MapPin size={15} /> {copy.location}</span></div></div>
-      <div className="event-detail-content"><div className="event-detail-main"><span className="eyebrow">{t(locale, 'eventOverview')}</span><p>{copy.description}</p><div className="event-info-grid"><div><Clock3 size={18} /><span><small>{t(locale, 'dateTime')}</small><strong>{formatDate(event.startsAt, locale)} · {formatTime(event.startsAt, locale)}</strong></span></div><div><MapPin size={18} /><span><small>{t(locale, 'location')}</small><strong>{copy.location}</strong></span></div><div><Users size={18} /><span><small>{t(locale, 'capacity')}</small><strong>{t(locale, 'attendeeCount', { count: event.registeredCount, capacity: event.capacity })}</strong></span></div></div></div><aside className="event-detail-sidebar"><div className="detail-availability"><span>{t(locale, 'availability')}</span><strong>{t(locale, 'availabilityLabel', { count: event.spotsLeft })}</strong></div><span className="eyebrow">{t(locale, 'ticketInformation')}</span><div className="detail-tickets">{(event.ticketTypes || []).map(ticket => <div key={ticket.id}><span><strong>{ticket.name}</strong><small>{ticket.description || t(locale, 'ticketTypes')} · {t(locale, 'remaining', { count: ticket.remaining })}</small></span><b>{formatPrice(ticket.price, locale)}</b></div>)}</div><EventAction event={event} onRegister={onRegister} locale={locale} /></aside></div>
+      <div className="event-detail-content"><div className="event-detail-main"><span className="eyebrow">{t(locale, 'eventOverview')}</span><p>{copy.description}</p><div className="event-info-grid"><div><Clock3 size={18} /><span><small>{t(locale, 'dateTime')}</small><strong>{formatDate(event.startsAt, locale)} · {formatTime(event.startsAt, locale)}</strong></span></div><div><MapPin size={18} /><span><small>{t(locale, 'location')}</small><strong>{copy.location}</strong></span></div><div><Users size={18} /><span><small>{t(locale, 'capacity')}</small><strong>{t(locale, 'attendeeCount', { count: event.registeredCount, capacity: event.capacity })}</strong></span></div></div></div><aside className="event-detail-sidebar"><div className="detail-availability"><span>{t(locale, 'availability')}</span><strong>{t(locale, 'availabilityLabel', { count: event.spotsLeft })}</strong></div><span className="eyebrow">{t(locale, 'ticketInformation')}</span><div className="detail-tickets">{ticketTypesFor(event).map(ticket => <div key={ticket.id}><span><strong>{ticket.name || (locale === 'th' ? 'บัตรทั่วไป' : 'General admission')}</strong><small>{ticket.description || t(locale, 'ticketTypes')} · {t(locale, 'remaining', { count: ticket.remaining })}</small></span><b>{formatPrice(ticket.price, locale)}</b></div>)}</div><EventAction event={event} onRegister={onRegister} locale={locale} /></aside></div>
     </article>
   </div>
 }
 
 function PurchaseModal({ event, onClose, refresh, setToast, locale }) {
-  const available = (event.ticketTypes || []).filter(ticket => ticket.remaining > 0)
+  const available = ticketTypesFor(event).filter(ticket => ticket.remaining > 0)
   const [ticketId, setTicketId] = useState(available[0]?.id ?? null)
   const selected = available.find(ticket => ticket.id === ticketId) ?? available[0]
   const [quantity, setQuantity] = useState(1)
@@ -424,7 +435,7 @@ function AdminDashboard({ page, params, loading, onParamsChange, refresh, setMod
 }
 
 function EventEditor({ event, onClose, onSaved, locale }) {
-  const initial = event ? { ...event, startsAt: event.startsAt.slice(0,16), ticketTypes: event.ticketTypes.map(ticket => ({ ...ticket, price: String(ticket.price) })) } : { title:'', description:'', location:'', startsAt:'', capacity:30, category:'COMMUNITY', ticketTypes:[{ name:'General admission', description:'', price:'0', capacity:30 }] }
+  const initial = event ? { ...event, startsAt: event.startsAt.slice(0,16), ticketTypes: ticketTypesFor(event).map(ticket => ({ ...ticket, price: String(ticket.price) })) } : { title:'', description:'', location:'', startsAt:'', capacity:30, category:'COMMUNITY', ticketTypes:[{ name:'General admission', description:'', price:'0', capacity:30 }] }
   const [form, setForm] = useState(initial); const [saving, setSaving] = useState(false); const [error, setError] = useState('')
   const field = key => ({ value: form[key], onChange: e => setForm({ ...form, [key]: e.target.value }) })
   const ticketTotal = form.ticketTypes.reduce((sum, ticket) => sum + Number(ticket.capacity || 0), 0)
