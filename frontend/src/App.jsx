@@ -106,7 +106,7 @@ function App() {
 
   useEffect(() => {
     Promise.all([api.events(DEFAULT_EVENT_PARAMS), api.me().catch(() => null)])
-      .then(([eventData, currentUser]) => { setEventPage(eventData); setUser(currentUser); if (currentUser?.role === 'ADMIN') setView('admin'); if (currentUser?.role === 'STAFF') setView('staff') })
+      .then(([eventData, currentUser]) => { setEventPage(eventData); setUser(currentUser); if (currentUser?.role === 'ADMIN') setView('admin-dashboard'); if (currentUser?.role === 'STAFF') setView('staff') })
       .finally(() => { setLoading(false); setEventsLoading(false) })
   }, [])
 
@@ -155,7 +155,7 @@ function App() {
   const isAdmin = user?.role === 'ADMIN'
   const isStaff = user?.role === 'STAFF'
   const navItems = isAdmin
-    ? [{ id: 'admin', label: t(locale, 'manage') }]
+    ? [{ id: 'admin-dashboard', label: locale === 'th' ? 'แดชบอร์ด' : 'Dashboard' }, { id: 'admin-events', label: t(locale, 'manage') }]
     : isStaff
       ? [{ id: 'staff', label: locale === 'th' ? 'เช็กอินหน้างาน' : 'Event check-in' }]
       : [{ id: 'events', label: t(locale, 'discover') }, ...(user ? [{ id: 'registrations', label: t(locale, 'registrations') }, { id: 'tickets', label: locale === 'th' ? 'ตั๋วของฉัน' : 'My tickets' }] : [])]
@@ -193,7 +193,8 @@ function App() {
         : view === 'registrations' ? <MyRegistrations onCancel={handleCancel} locale={locale} />
         : view === 'tickets' ? <MyTickets locale={locale} />
         : view === 'staff' ? <StaffDesk locale={locale} />
-        : <AdminDashboard page={eventPage} params={eventParams} loading={eventsLoading} onParamsChange={loadEvents} refresh={loadEvents} setModal={setModal} setToast={setToast} locale={locale} />}
+        : view === 'admin-dashboard' ? <AdminDashboard page={eventPage} onNavigate={setView} locale={locale} />
+        : <AdminEvents page={eventPage} params={eventParams} loading={eventsLoading} onParamsChange={loadEvents} refresh={loadEvents} setModal={setModal} setToast={setToast} locale={locale} />}
     </main>
     <footer><span>{t(locale, 'footer')}</span><span>{t(locale, 'footerBody')}</span></footer>
     {modal?.type === 'login' && <LoginModal modal={modal} setModal={setModal} setUser={setUser} setView={setView} refresh={loadEvents} setToast={setToast} locale={locale} />}
@@ -477,7 +478,19 @@ function PurchaseModal({ event, onClose, refresh, setToast, locale }) {
   </div></div>
 }
 
-function AdminDashboard({ page, params, loading, onParamsChange, refresh, setModal, setToast, locale }) {
+function AdminDashboard({ page, onNavigate, locale }) {
+  const [analytics, setAnalytics] = useState(null)
+  useEffect(() => { api.analytics().then(setAnalytics).catch(() => {}) }, [])
+  const cards = [
+    [locale === 'th' ? 'ผู้เข้าชมเว็บไซต์' : 'Website visits', analytics?.siteViews, locale === 'th' ? `${analytics?.uniqueVisitors ?? 0} ผู้เข้าชมไม่ซ้ำ` : `${analytics?.uniqueVisitors ?? 0} unique visitors`],
+    [locale === 'th' ? 'การดูอีเวนต์' : 'Event detail views', analytics?.eventViews, locale === 'th' ? 'นับจากการเปิดหน้ารายละเอียด' : 'Captured on detail opens'],
+    [locale === 'th' ? 'การจองทั้งหมด' : 'Total bookings', analytics?.registrations ?? page.totalRegistrations, locale === 'th' ? 'ตั๋วที่ถูกจองในระบบ' : 'Tickets reserved in the platform'],
+    [locale === 'th' ? 'อีเวนต์ที่เปิดรับ' : 'Open events', page.totalOpenEvents, locale === 'th' ? `จากทั้งหมด ${page.totalElements} อีเวนต์` : `of ${page.totalElements} total events`],
+  ]
+  return <section className="container page-section admin-dashboard-page"><div className="dashboard-hero"><div><span className="eyebrow">{locale === 'th' ? 'ภาพรวมผู้จัดงาน' : 'Organizer overview'}</span><h1>{locale === 'th' ? 'สวัสดี, ดูภาพรวมงานของคุณ' : 'A clear view of your events.'}</h1><p>{locale === 'th' ? 'ติดตามความสนใจ การเข้าชม และการจองก่อนลงมือจัดการอีเวนต์' : 'Track attention, visits, and reservations before managing your events.'}</p></div><button className="button button-dark" onClick={() => onNavigate('admin-events')}><Edit3 size={17} /> {locale === 'th' ? 'จัดการอีเวนต์' : 'Manage events'}</button></div><div className="dashboard-metrics">{cards.map(([label, value, note]) => <article key={label}><span>{label}</span><strong>{value ?? '—'}</strong><small>{note}</small></article>)}</div><section className="dashboard-insight"><div><span className="eyebrow">{locale === 'th' ? 'สิ่งที่ควรทำต่อ' : 'Next up'}</span><h2>{locale === 'th' ? 'ดูแลการจองให้ง่ายในทุกจุด' : 'Keep every booking detail in one place.'}</h2><p>{locale === 'th' ? 'เพิ่มอีเวนต์ แก้ไขบัตร ดูรายชื่อผู้ลงทะเบียน และเตรียมเช็กอินได้จากหน้าจัดการอีเวนต์' : 'Create events, edit ticket types, review registrants, and prepare check-in from event management.'}</p></div><button className="button button-outline" onClick={() => onNavigate('admin-events')}>{locale === 'th' ? 'ไปหน้าจัดการ' : 'Open management'} <ArrowRight size={16} /></button></section></section>
+}
+
+function AdminEvents({ page, params, loading, onParamsChange, refresh, setModal, setToast, locale }) {
   const events = page.items
   const [editor, setEditor] = useState(null)
   const [attendees, setAttendees] = useState(null)
@@ -521,7 +534,7 @@ function AttendeePanel({ data, onClose, locale }) {
 
 function LoginModal({ modal, setModal, setUser, setView, refresh, setToast, locale }) {
   const [email, setEmail] = useState('user@event.local'); const [password, setPassword] = useState('password'); const [error, setError] = useState(''); const [busy, setBusy] = useState(false)
-  async function submit(e) { e.preventDefault(); setBusy(true); setError(''); try { const current = await api.login({ email, password }); setUser(current); await refresh(); if (!modal.afterLoginEvent && current.role === 'ADMIN') setView('admin'); if (!modal.afterLoginEvent && current.role === 'STAFF') setView('staff'); setToast({ message: t(locale, 'welcome', { name: current.name.split(' ')[0] }), tone:'success' }); setModal(modal.afterLoginEvent ? { type: 'purchase', event: modal.afterLoginEvent } : null) } catch (err) { setError(err.message === 'Something went wrong. Please try again.' ? t(locale, 'errorCredentials') : err.message); setBusy(false) } }
+  async function submit(e) { e.preventDefault(); setBusy(true); setError(''); try { const current = await api.login({ email, password }); setUser(current); await refresh(); if (!modal.afterLoginEvent && current.role === 'ADMIN') setView('admin-dashboard'); if (!modal.afterLoginEvent && current.role === 'STAFF') setView('staff'); setToast({ message: t(locale, 'welcome', { name: current.name.split(' ')[0] }), tone:'success' }); setModal(modal.afterLoginEvent ? { type: 'purchase', event: modal.afterLoginEvent } : null) } catch (err) { setError(err.message === 'Something went wrong. Please try again.' ? t(locale, 'errorCredentials') : err.message); setBusy(false) } }
   return <div className="overlay centered" role="presentation"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="login-title"><button className="icon-button modal-close" onClick={() => setModal(null)} aria-label={t(locale, 'close')}><X /></button><div className="login-mark"><TicketCheck /></div><span className="eyebrow">{t(locale, 'memberAccess')}</span><h2 id="login-title">{t(locale, 'signInTitle')}</h2><p>{t(locale, 'signInBody')}</p><form onSubmit={submit}><label>{t(locale, 'email')}<input autoFocus required type="email" value={email} onChange={e => setEmail(e.target.value)} /></label><label>{t(locale, 'password')}<input required type="password" value={password} onChange={e => setPassword(e.target.value)} /></label>{error && <p className="form-error">{error}</p>}<button className="button button-dark full" disabled={busy}>{busy ? t(locale, 'signingIn') : t(locale, 'signIn')}</button></form><div className="demo-note"><strong>{t(locale, 'demoAccounts')}</strong><span>{t(locale, 'userDemo')}</span><span>{t(locale, 'adminDemo')}</span></div></div></div>
 }
 
