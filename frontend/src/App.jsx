@@ -199,10 +199,13 @@ function App() {
 
 function Discover({ page, params, loading, user, onRegister, onViewDetail, onParamsChange, locale }) {
   const [query, setQuery] = useState(params.search)
+  const [heroEvents, setHeroEvents] = useState([])
   const filter = params.status === 'OPEN' ? 'available' : params.status === 'REGISTERED' ? 'registered' : 'all'
   const events = page.items
-  const spotlightEvents = events.filter(event => event.status === 'OPEN')
-  const featured = spotlightEvents[0] ?? events[0]
+  const filteredSpotlightEvents = events.filter(event => event.status === 'OPEN')
+  const spotlightEvents = heroEvents.length ? heroEvents : filteredSpotlightEvents
+  const heroFeatured = spotlightEvents[0]
+  const featured = filteredSpotlightEvents[0] ?? events[0]
   const ticketChoices = events.reduce((sum, event) => sum + (event.ticketTypes?.length || 0), 0)
   const ticketsAvailable = events.reduce((sum, event) => sum + event.spotsLeft, 0)
   const freeEventCount = events.filter(event => event.status === 'OPEN' && hasFreeAdmission(event)).length
@@ -214,6 +217,10 @@ function Discover({ page, params, loading, user, onRegister, onViewDetail, onPar
   useEffect(() => {
     setQuery(params.search)
   }, [params.search])
+
+  useEffect(() => {
+    api.events(DEFAULT_EVENT_PARAMS).then(data => setHeroEvents(data.items.filter(event => event.status === 'OPEN'))).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (query === params.search) return undefined
@@ -229,10 +236,10 @@ function Discover({ page, params, loading, user, onRegister, onViewDetail, onPar
         <p>{t(locale, 'heroBody')}</p>
         <div className="landing-actions"><button className="button button-dark" onClick={() => document.querySelector('.events-section')?.scrollIntoView({ behavior: 'smooth' })}>{t(locale, 'landingCta')} <ArrowRight size={17} /></button><span>{t(locale, 'landingNote')}</span></div>
       </div>
-      {featured && <HeroHighlight event={featured} events={spotlightEvents.length ? spotlightEvents : events} onRegister={onRegister} locale={locale} />}
+      {heroFeatured && <HeroHighlight event={heroFeatured} events={spotlightEvents} onRegister={onRegister} locale={locale} />}
     </section>
 
-    {!params.search && params.status === 'ALL' && <>
+    {!params.search && <>
       <section className="interest-section container" aria-label={t(locale, 'browseByInterest')}><div className="discovery-heading"><div><span className="eyebrow">{t(locale, 'browseByInterest')}</span><h2>{t(locale, 'browseByInterest')}</h2></div><span>{t(locale, 'eventCount', { count: page.totalElements })}</span></div><div className="interest-chips">{categoryOptions.map(category => <button key={category} className={category === params.category ? 'active' : ''} onClick={() => onParamsChange({ ...params, page: 0, category })}>{category === 'ALL' ? t(locale, 'categoryAll') : categoryLabel(category, locale)}</button>)}</div></section>
       {recommended.length > 0 && <DiscoveryRail title={t(locale, 'recommended')} body={t(locale, 'recommendedBody')} events={recommended} locale={locale} onViewDetail={onViewDetail} />}
       <section className="discovery-columns container"><DiscoveryList kicker={t(locale, 'freeKicker')} title={t(locale, 'freeEvents')} body={t(locale, 'freeEventsBody')} events={freeEvents} locale={locale} onViewDetail={onViewDetail} /><DiscoveryTimeline kicker={t(locale, 'timelineKicker')} title={t(locale, 'comingSoon')} body={t(locale, 'comingSoonBody')} events={comingSoon} locale={locale} onViewDetail={onViewDetail} /></section>
