@@ -30,4 +30,6 @@ export const api = {
   checkIn: (eventId, ticketCode) => request(`/api/staff/events/${eventId}/check-in`, { method: 'POST', body: JSON.stringify({ ticketCode }) }),
   staffAttendees: (eventId) => request(`/api/staff/events/${eventId}/attendees`),
   recentCheckIns: (eventId) => request(`/api/staff/events/${eventId}/recent-check-ins`),
+  analytics: () => request('/api/admin/analytics'),
+  trackVisit: (data) => request('/api/analytics/visit', { method: 'POST', body: JSON.stringify(data) }),
 }
