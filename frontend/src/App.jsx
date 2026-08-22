@@ -480,6 +480,10 @@ function PurchaseModal({ event, onClose, refresh, setToast, locale }) {
 }
 
 function AdminDashboard({ page, onNavigate, locale }) {
+  const [analytics, setAnalytics] = useState(null)
+  useEffect(() => {
+    api.analytics().then(setAnalytics).catch(() => setAnalytics(null))
+  }, [])
   const cards = [
     [locale === 'th' ? 'ผู้เข้าชมเว็บไซต์' : 'Website visits', analytics?.siteViews, locale === 'th' ? `${analytics?.uniqueVisitors ?? 0} ผู้เข้าชมไม่ซ้ำ` : `${analytics?.uniqueVisitors ?? 0} unique visitors`],
     [locale === 'th' ? 'การดูอีเวนต์' : 'Event detail views', analytics?.eventViews, locale === 'th' ? 'นับจากการเปิดหน้ารายละเอียด' : 'Captured on detail opens'],
@@ -495,8 +499,6 @@ function AdminEvents({ page, params, loading, onParamsChange, refresh, setModal,
   const events = page.items
   const [editor, setEditor] = useState(null)
   const [attendees, setAttendees] = useState(null)
-  const [analytics, setAnalytics] = useState(null)
-  useEffect(() => { api.analytics().then(setAnalytics).catch(() => {}) }, [])
   async function remove(event) {
     setModal({ type: 'confirm', title: t(locale, 'deleteTitle', { name: eventCopy(event, locale).title }), body: t(locale, 'deleteBody'), destructive: true, action: async () => {
       await api.deleteEvent(event.id); await refresh(); setModal(null); setToast({ message: t(locale, 'eventDeleted'), tone: 'success' })
