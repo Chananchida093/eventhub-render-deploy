@@ -13,7 +13,7 @@ import com.eventhub.dto.EventListRow;
 public interface EventRepository extends JpaRepository<Event, Long> {
     @Query(value = """
             select new com.eventhub.dto.EventListRow(
-                e.id, e.title, e.description, e.location, e.startsAt, e.capacity, e.category, e.imageUrl,
+                e.id, e.title, e.description, e.location, e.startsAt, e.capacity, e.category, e.imageUrl, e.detailImageUrl,
                 coalesce(sum(r.quantity), 0), case when count(distinct ur.id) > 0 then true else false end)
             from Event e
             left join Registration r on r.event.id = e.id
@@ -23,7 +23,7 @@ public interface EventRepository extends JpaRepository<Event, Long> {
             and (:search = '' or lower(e.title) like lower(:search)
                 or lower(e.description) like lower(:search)
                 or lower(e.location) like lower(:search))
-            group by e.id, e.title, e.description, e.location, e.startsAt, e.capacity, e.category, e.imageUrl
+            group by e.id, e.title, e.description, e.location, e.startsAt, e.capacity, e.category, e.imageUrl, e.detailImageUrl
             having (:status = 'ALL'
                 or (:status = 'OPEN' and e.startsAt > :now and coalesce(sum(r.quantity), 0) < e.capacity)
                 or (:status = 'FULL' and e.startsAt > :now and coalesce(sum(r.quantity), 0) >= e.capacity)

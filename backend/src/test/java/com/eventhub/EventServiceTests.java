@@ -68,7 +68,7 @@ class EventServiceTests {
         Event event = events.save(new Event("Capacity event", "Test", "Room 4", LocalDateTime.now().plusDays(1), 2));
         service.register(event.getId(), principal(user));
 
-        EventRequest invalid = new EventRequest("Capacity event", "Test", "Room 4", LocalDateTime.now().plusDays(1), 0, "TECH", null, java.util.List.of(new com.eventhub.dto.ApiDtos.TicketTypeRequest(null, "General", "", java.math.BigDecimal.ZERO, 1)));
+        EventRequest invalid = new EventRequest("Capacity event", "Test", "Room 4", LocalDateTime.now().plusDays(1), 0, "TECH", null, null, java.util.List.of(new com.eventhub.dto.ApiDtos.TicketTypeRequest(null, "General", "", java.math.BigDecimal.ZERO, 1)));
         assertThatThrownBy(() -> service.update(event.getId(), invalid)).isInstanceOf(ResponseStatusException.class);
     }
 

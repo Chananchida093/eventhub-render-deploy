@@ -4,5 +4,5 @@ import java.time.LocalDateTime;
 
 /** One database projection row for the paginated event list. */
 public record EventListRow(Long id, String title, String description, String location,
-                           LocalDateTime startsAt, int capacity, String category, String imageUrl, long registeredCount,
+                           LocalDateTime startsAt, int capacity, String category, String imageUrl, String detailImageUrl, long registeredCount,
                            boolean registered) {}

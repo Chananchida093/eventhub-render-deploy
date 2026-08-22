@@ -24,6 +24,8 @@ public class Event {
     private String category = "COMMUNITY";
     @Column(length = 2000)
     private String imageUrl;
+    @Column(length = 2000)
+    private String detailImageUrl;
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id asc")
     private final List<TicketType> ticketTypes = new ArrayList<>();
@@ -43,6 +45,7 @@ public class Event {
         update(title, description, location, startsAt, capacity); this.category = category;
     }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl == null || imageUrl.isBlank() ? null : imageUrl.trim(); }
+    public void setDetailImageUrl(String imageUrl) { this.detailImageUrl = imageUrl == null || imageUrl.isBlank() ? null : imageUrl.trim(); }
     public Long getId() { return id; }
     public String getTitle() { return title; }
     public String getDescription() { return description; }
@@ -51,6 +54,7 @@ public class Event {
     public int getCapacity() { return capacity; }
     public String getCategory() { return category == null || category.isBlank() ? "COMMUNITY" : category; }
     public String getImageUrl() { return imageUrl; }
+    public String getDetailImageUrl() { return detailImageUrl; }
     public void setCategory(String category) { this.category = category; }
     public List<TicketType> getTicketTypes() { return ticketTypes; }
     public void addTicketType(String name, String description, BigDecimal price, int capacity) {

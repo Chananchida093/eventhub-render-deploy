@@ -99,6 +99,7 @@ public class EventService {
         validateTicketPlan(request);
         Event event = new Event(request.title(), request.description(), request.location(), request.startsAt(), request.capacity(), normalizeCategory(request.category()));
         event.setImageUrl(request.imageUrl());
+        event.setDetailImageUrl(request.detailImageUrl());
         request.ticketTypes().forEach(type -> event.addTicketType(type.name(), type.description(), type.price(), type.capacity()));
         return dto(events.save(event), null);
     }
@@ -111,6 +112,7 @@ public class EventService {
         validateTicketPlan(request);
         event.update(request.title(), request.description(), request.location(), request.startsAt(), request.capacity(), normalizeCategory(request.category()));
         event.setImageUrl(request.imageUrl());
+        event.setDetailImageUrl(request.detailImageUrl());
         Map<Long, TicketType> oldById = event.getTicketTypes().stream().collect(java.util.stream.Collectors.toMap(TicketType::getId, item -> item));
         Set<Long> requestedIds = request.ticketTypes().stream().map(TicketTypeRequest::id).filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
         for (TicketType old : new ArrayList<>(event.getTicketTypes())) {
