@@ -16,6 +16,7 @@ export const api = {
     if (search.trim()) params.set('search', search.trim())
     return request(`/api/events?${params.toString()}`)
   },
+  event: (id) => request(`/api/events/${id}`),
   me: () => request('/api/auth/me'),
   login: (data) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(data) }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),

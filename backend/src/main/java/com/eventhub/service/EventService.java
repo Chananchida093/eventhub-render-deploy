@@ -99,7 +99,7 @@ public class EventService {
         validateTicketPlan(request);
         Event event = new Event(request.title(), request.description(), request.location(), request.startsAt(), request.capacity(), normalizeCategory(request.category()));
         event.setImageUrl(request.imageUrl());
-        event.setDetailImageUrl(request.detailImageUrl());
+        event.setDetailImages(detailImages(request));
         request.ticketTypes().forEach(type -> event.addTicketType(type.name(), type.description(), type.price(), type.capacity()));
         return dto(events.save(event), null);
     }
@@ -112,7 +112,7 @@ public class EventService {
         validateTicketPlan(request);
         event.update(request.title(), request.description(), request.location(), request.startsAt(), request.capacity(), normalizeCategory(request.category()));
         event.setImageUrl(request.imageUrl());
-        event.setDetailImageUrl(request.detailImageUrl());
+        event.setDetailImages(detailImages(request));
         Map<Long, TicketType> oldById = event.getTicketTypes().stream().collect(java.util.stream.Collectors.toMap(TicketType::getId, item -> item));
         Set<Long> requestedIds = request.ticketTypes().stream().map(TicketTypeRequest::id).filter(Objects::nonNull).collect(java.util.stream.Collectors.toSet());
         for (TicketType old : new ArrayList<>(event.getTicketTypes())) {
@@ -190,6 +190,9 @@ public class EventService {
     private void validateTicketPlan(EventRequest request) {
         int total = request.ticketTypes().stream().mapToInt(TicketTypeRequest::capacity).sum();
         if (total != request.capacity()) throw conflict("Ticket quantities must add up to maximum attendees");
+    }
+    private List<DetailImage> detailImages(EventRequest request) {
+        return request.detailImages() == null ? List.of() : request.detailImages().stream().map(image -> new DetailImage(image.url(), image.placement())).toList();
     }
     private String normalizeStatus(String status) {
         if (status == null || status.isBlank()) return "ALL";

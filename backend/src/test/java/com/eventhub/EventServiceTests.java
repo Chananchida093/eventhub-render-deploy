@@ -2,6 +2,7 @@ package com.eventhub;
 
 import com.eventhub.dto.ApiDtos.EventRequest;
 import com.eventhub.dto.ApiDtos.EventPageDto;
+import com.eventhub.dto.ApiDtos.PurchaseRequest;
 import com.eventhub.model.*;
 import com.eventhub.repository.*;
 import com.eventhub.service.EventService;
@@ -14,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -68,7 +70,7 @@ class EventServiceTests {
         Event event = events.save(new Event("Capacity event", "Test", "Room 4", LocalDateTime.now().plusDays(1), 2));
         service.register(event.getId(), principal(user));
 
-        EventRequest invalid = new EventRequest("Capacity event", "Test", "Room 4", LocalDateTime.now().plusDays(1), 0, "TECH", null, null, java.util.List.of(new com.eventhub.dto.ApiDtos.TicketTypeRequest(null, "General", "", java.math.BigDecimal.ZERO, 1)));
+        EventRequest invalid = new EventRequest("Capacity event", "Test", "Room 4", LocalDateTime.now().plusDays(1), 0, "TECH", null, java.util.List.of(), java.util.List.of(new com.eventhub.dto.ApiDtos.TicketTypeRequest(null, "General", "", java.math.BigDecimal.ZERO, 1)));
         assertThatThrownBy(() -> service.update(event.getId(), invalid)).isInstanceOf(ResponseStatusException.class);
     }
 
@@ -97,6 +99,41 @@ class EventServiceTests {
 
         assertThat(result.items()).extracting(item -> item.id()).contains(open.getId());
         assertThat(result.items()).extracting(item -> item.id()).doesNotContain(ended.getId());
+    }
+
+    @Test
+    void ticketPurchaseHonoursTierQuotaAndCreatesTicketCode() {
+        UserAccount user = users.save(new UserAccount("tickets@test.local", "unused", "Ticket Buyer", Role.USER));
+        Event event = new Event("Ticketed event", "Test", "Theatre", LocalDateTime.now().plusDays(2), 3);
+        event.addTicketType("Early bird", "Limited", new BigDecimal("150"), 1);
+        event.addTicketType("General", "Standard", new BigDecimal("300"), 2);
+        event = events.save(event);
+        Long eventId = event.getId();
+        Long earlyBirdId = event.getTicketTypes().getFirst().getId();
+
+        var result = service.register(eventId, new PurchaseRequest(earlyBirdId, 1), principal(user));
+
+        assertThat(result.quantity()).isEqualTo(1);
+        assertThat(result.ticketTypeName()).isEqualTo("Early bird");
+        assertThat(result.ticketCode()).startsWith("GTH-");
+        assertThatThrownBy(() -> service.register(eventId, new PurchaseRequest(earlyBirdId, 1), principal(users.save(new UserAccount("second-ticket@test.local", "unused", "Second Buyer", Role.USER)))))
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertThat(ex.getReason()).isEqualTo("This ticket type is sold out"));
+    }
+
+    @Test
+    void staffCheckInUsesTheTicketCodeOnlyOnce() {
+        UserAccount user = users.save(new UserAccount("checkin@test.local", "unused", "Check In", Role.USER));
+        Event event = new Event("Check-in event", "Test", "Gate", LocalDateTime.now().plusDays(2), 2);
+        event.addTicketType("Door ticket", "Entry", BigDecimal.ZERO, 2);
+        event = events.save(event);
+
+        var ticket = service.register(event.getId(), new PurchaseRequest(event.getTicketTypes().getFirst().getId(), 1), principal(user));
+        var first = service.checkIn(ticket.ticketCode());
+        var second = service.checkIn(ticket.ticketCode());
+
+        assertThat(first.checkedIn()).isTrue();
+        assertThat(first.checkedInAt()).isNotNull();
+        assertThat(second.checkedInAt()).isEqualTo(first.checkedInAt());
     }
 
     private Principal principal(UserAccount user) { return user::getEmail; }

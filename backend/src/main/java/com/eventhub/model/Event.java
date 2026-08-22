@@ -26,6 +26,10 @@ public class Event {
     private String imageUrl;
     @Column(length = 2000)
     private String detailImageUrl;
+    @ElementCollection
+    @CollectionTable(name = "event_detail_images", joinColumns = @JoinColumn(name = "event_id"))
+    @OrderColumn(name = "display_order")
+    private final List<DetailImage> detailImages = new ArrayList<>();
     @OneToMany(mappedBy = "event", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id asc")
     private final List<TicketType> ticketTypes = new ArrayList<>();
@@ -46,6 +50,7 @@ public class Event {
     }
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl == null || imageUrl.isBlank() ? null : imageUrl.trim(); }
     public void setDetailImageUrl(String imageUrl) { this.detailImageUrl = imageUrl == null || imageUrl.isBlank() ? null : imageUrl.trim(); }
+    public void setDetailImages(List<DetailImage> images) { detailImages.clear(); if (images != null) detailImages.addAll(images); }
     public Long getId() { return id; }
     public String getTitle() { return title; }
     public String getDescription() { return description; }
@@ -55,6 +60,7 @@ public class Event {
     public String getCategory() { return category == null || category.isBlank() ? "COMMUNITY" : category; }
     public String getImageUrl() { return imageUrl; }
     public String getDetailImageUrl() { return detailImageUrl; }
+    public List<DetailImage> getDetailImages() { return detailImages; }
     public void setCategory(String category) { this.category = category; }
     public List<TicketType> getTicketTypes() { return ticketTypes; }
     public void addTicketType(String name, String description, BigDecimal price, int capacity) {
