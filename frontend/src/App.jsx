@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
+import QRCode from 'qrcode'
 import { api } from './api'
 import {
   ArrowLeft, ArrowRight, ArrowUpRight, Check, ChevronDown, ChevronLeft, ChevronRight, Clock3, Edit3, Eye, LogOut,
-  MapPin, Menu, Plus, Search, Sparkles, TicketCheck, Trash2, Users, X, ReceiptText, Minus,
+  MapPin, Menu, Plus, Search, Sparkles, TicketCheck, Trash2, Users, X, ReceiptText, Minus, ScanLine, ShieldCheck, Image as ImageIcon,
 } from 'lucide-react'
 
 const translations = {
@@ -56,7 +57,7 @@ const eventArtwork = {
   'Campus Product Night': '/art-product.svg',
   'Accessibility Testing Lab': '/art-accessibility.svg',
 }
-function imageFor(event) { return eventArtwork[event?.title] ?? '/art-design.svg' }
+function imageFor(event) { return event?.imageUrl || (eventArtwork[event?.title] ?? '/art-design.svg') }
 function categoryLabel(category, locale) {
   const normalized = String(category || 'COMMUNITY').toUpperCase()
   return t(locale, `category${normalized.charAt(0)}${normalized.slice(1).toLowerCase()}`)
@@ -105,7 +106,7 @@ function App() {
 
   useEffect(() => {
     Promise.all([api.events(DEFAULT_EVENT_PARAMS), api.me().catch(() => null)])
-      .then(([eventData, currentUser]) => { setEventPage(eventData); setUser(currentUser) })
+      .then(([eventData, currentUser]) => { setEventPage(eventData); setUser(currentUser); if (currentUser?.role === 'ADMIN') setView('admin'); if (currentUser?.role === 'STAFF') setView('staff') })
       .finally(() => { setLoading(false); setEventsLoading(false) })
   }, [])
 
@@ -146,9 +147,12 @@ function App() {
   }
 
   const isAdmin = user?.role === 'ADMIN'
+  const isStaff = user?.role === 'STAFF'
   const navItems = isAdmin
-    ? [{ id: 'events', label: t(locale, 'events') }, { id: 'admin', label: t(locale, 'manage') }]
-    : [{ id: 'events', label: t(locale, 'discover') }, ...(user ? [{ id: 'registrations', label: t(locale, 'registrations') }] : [])]
+    ? [{ id: 'admin', label: t(locale, 'manage') }]
+    : isStaff
+      ? [{ id: 'staff', label: locale === 'th' ? 'เช็กอินหน้างาน' : 'Event check-in' }]
+      : [{ id: 'events', label: t(locale, 'discover') }, ...(user ? [{ id: 'registrations', label: t(locale, 'registrations') }, { id: 'tickets', label: locale === 'th' ? 'ตั๋วของฉัน' : 'My tickets' }] : [])]
 
   return <div className="app-shell">
     <header className="site-header">
@@ -181,10 +185,12 @@ function App() {
       {loading ? <Loading /> : view === 'detail' && detailEvent ? <EventDetailPage event={detailEvent} onBack={closeEventDetail} onRegister={handleRegister} locale={locale} />
         : view === 'events' ? <Discover page={eventPage} params={eventParams} loading={eventsLoading} user={user} onRegister={handleRegister} onViewDetail={openEventDetail} onParamsChange={loadEvents} locale={locale} />
         : view === 'registrations' ? <MyRegistrations onCancel={handleCancel} locale={locale} />
+        : view === 'tickets' ? <MyTickets locale={locale} />
+        : view === 'staff' ? <StaffDesk locale={locale} />
         : <AdminDashboard page={eventPage} params={eventParams} loading={eventsLoading} onParamsChange={loadEvents} refresh={loadEvents} setModal={setModal} setToast={setToast} locale={locale} />}
     </main>
     <footer><span>{t(locale, 'footer')}</span><span>{t(locale, 'footerBody')}</span></footer>
-    {modal?.type === 'login' && <LoginModal modal={modal} setModal={setModal} setUser={setUser} refresh={loadEvents} setToast={setToast} locale={locale} />}
+    {modal?.type === 'login' && <LoginModal modal={modal} setModal={setModal} setUser={setUser} setView={setView} refresh={loadEvents} setToast={setToast} locale={locale} />}
     {modal?.type === 'purchase' && <PurchaseModal event={modal.event} onClose={() => setModal(null)} refresh={loadEvents} setToast={setToast} locale={locale} />}
     {modal?.type === 'confirm' && <ConfirmModal modal={modal} setModal={setModal} locale={locale} />}
     {toast && <div className={`toast ${toast.tone}`} role="status"><Check size={17} />{toast.message}</div>}
@@ -364,6 +370,27 @@ function MyRegistrations({ onCancel, locale }) {
   </section>
 }
 
+function TicketQr({ code }) {
+  const [src, setSrc] = useState('')
+  useEffect(() => { let active = true; QRCode.toDataURL(code || 'GATHER-TICKET', { margin: 1, width: 176, color: { dark: '#19263c', light: '#ffffff' } }).then(value => { if (active) setSrc(value) }); return () => { active = false } }, [code])
+  return <div className="ticket-qr">{src ? <img src={src} alt={`QR ${code}`} /> : <span>•••</span>}</div>
+}
+
+function MyTickets({ locale }) {
+  const [items, setItems] = useState(null)
+  useEffect(() => { api.registrations().then(setItems) }, [])
+  return <section className="container page-section tickets-page"><div className="page-heading"><div className="eyebrow">{locale === 'th' ? 'บัตรพร้อมใช้งาน' : 'Tickets ready'}</div><h1>{locale === 'th' ? 'ตั๋วของฉัน' : 'My tickets'}</h1><p>{locale === 'th' ? 'แสดง QR นี้ให้ทีมงานสแกนเมื่อมาถึงงาน' : 'Show this QR code to the event team at check-in.'}</p></div>{!items ? <Loading /> : items.length === 0 ? <EmptyRegistrations locale={locale} /> : <div className="ticket-wallet">{items.map(({ event, ticketCode, ticketTypeName, quantity, totalPrice, registeredAt }) => <article className="wallet-ticket" key={ticketCode}><div className="wallet-art"><img src={imageFor(event)} alt="" /><div><span>{categoryLabel(event.category, locale)}</span><h2>{eventCopy(event, locale).title}</h2></div></div><div className="wallet-details"><div><small>{locale === 'th' ? 'วันและเวลา' : 'Date & time'}</small><strong>{formatDate(event.startsAt, locale)} · {formatTime(event.startsAt, locale)}</strong></div><div><small>{locale === 'th' ? 'สถานที่' : 'Location'}</small><strong>{eventCopy(event, locale).location}</strong></div><div><small>{locale === 'th' ? 'ประเภทบัตร' : 'Ticket type'}</small><strong>{ticketTypeName} × {quantity} · {formatPrice(totalPrice, locale)}</strong></div><small>{locale === 'th' ? 'ออกบัตรเมื่อ' : 'Issued'} {formatDate(registeredAt, locale)}</small></div><div className="wallet-scan"><TicketQr code={ticketCode} /><strong>{ticketCode}</strong><span>{locale === 'th' ? 'สแกนเพื่อเช็กอิน' : 'Scan to check in'}</span></div></article>)}</div>}</section>
+}
+
+function StaffDesk({ locale }) {
+  const [code, setCode] = useState('')
+  const [result, setResult] = useState(null)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  async function submit(e) { e.preventDefault(); if (!code.trim()) return; setBusy(true); setError(''); try { setResult(await api.checkIn(code)); setCode('') } catch (err) { setResult(null); setError(err.message) } finally { setBusy(false) } }
+  return <section className="container page-section staff-page"><div className="page-heading"><div className="eyebrow"><ScanLine size={14} /> {locale === 'th' ? 'ทีมหน้างาน' : 'Event staff'}</div><h1>{locale === 'th' ? 'เช็กอินผู้เข้าร่วม' : 'Check in attendees'}</h1><p>{locale === 'th' ? 'สแกน QR ด้วยอุปกรณ์สแกน แล้วระบบจะใส่รหัสตั๋วให้อัตโนมัติ หรือกรอกรหัสด้วยมือ' : 'Scan a ticket QR with a keyboard-wedge scanner, or enter the ticket code manually.'}</p></div><div className="staff-checkin"><form onSubmit={submit}><label>{locale === 'th' ? 'รหัสตั๋ว' : 'Ticket code'}<input autoFocus value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="GTH-XXXXXXXXXX" /></label><button className="button button-dark" disabled={busy}><ScanLine size={17} /> {busy ? (locale === 'th' ? 'กำลังตรวจสอบ…' : 'Checking…') : (locale === 'th' ? 'เช็กอินตั๋ว' : 'Check in ticket')}</button>{error && <p className="form-error">{error}</p>}</form>{result && <div className="checkin-result"><ShieldCheck size={28} /><span>{locale === 'th' ? 'เช็กอินสำเร็จ' : 'Check-in successful'}</span><h2>{result.attendeeName}</h2><p>{result.eventTitle}</p><strong>{result.ticketType} × {result.quantity}</strong><small>{result.ticketCode} · {formatTime(result.checkedInAt, locale)}</small></div>}</div></section>
+}
+
 function EventDetailPage({ event, onBack, onRegister, locale }) {
   const [ticketsOpen, setTicketsOpen] = useState(true)
   const [organizerOpen, setOrganizerOpen] = useState(true)
@@ -435,7 +462,7 @@ function AdminDashboard({ page, params, loading, onParamsChange, refresh, setMod
 }
 
 function EventEditor({ event, onClose, onSaved, locale }) {
-  const initial = event ? { ...event, startsAt: event.startsAt.slice(0,16), ticketTypes: ticketTypesFor(event).map(ticket => ({ ...ticket, price: String(ticket.price) })) } : { title:'', description:'', location:'', startsAt:'', capacity:30, category:'COMMUNITY', ticketTypes:[{ name:'General admission', description:'', price:'0', capacity:30 }] }
+  const initial = event ? { ...event, imageUrl: event.imageUrl || '', startsAt: event.startsAt.slice(0,16), ticketTypes: ticketTypesFor(event).map(ticket => ({ ...ticket, price: String(ticket.price) })) } : { title:'', description:'', location:'', startsAt:'', capacity:30, category:'COMMUNITY', imageUrl:'/art-design.svg', ticketTypes:[{ name:'General admission', description:'', price:'0', capacity:30 }] }
   const [form, setForm] = useState(initial); const [saving, setSaving] = useState(false); const [error, setError] = useState('')
   const field = key => ({ value: form[key], onChange: e => setForm({ ...form, [key]: e.target.value }) })
   const ticketTotal = form.ticketTypes.reduce((sum, ticket) => sum + Number(ticket.capacity || 0), 0)
@@ -443,7 +470,7 @@ function EventEditor({ event, onClose, onSaved, locale }) {
   async function submit(e) { e.preventDefault(); setSaving(true); setError(''); try { const payload = { ...form, capacity: Number(form.capacity), ticketTypes: form.ticketTypes.map(ticket => ({ ...ticket, price: Number(ticket.price), capacity: Number(ticket.capacity) })) }; if (event) await api.updateEvent(event.id, payload); else await api.createEvent(payload); await onSaved(event ? 'Event updated' : 'Event created') } catch (err) { setError(err.message); setSaving(false) } }
   return <div className="overlay" role="presentation"><div className="sheet" role="dialog" aria-modal="true" aria-labelledby="event-form-title">
     <div className="sheet-header"><div><span className="eyebrow">{event ? t(locale, 'editEvent') : t(locale, 'newEvent')}</span><h2 id="event-form-title">{event ? eventCopy(event, locale).title : t(locale, 'createEvent')}</h2></div><button className="icon-button" onClick={onClose} aria-label={t(locale, 'close')}><X /></button></div>
-    <form onSubmit={submit} className="event-form"><label>{t(locale, 'eventTitle')}<input required autoFocus {...field('title')} placeholder={t(locale, 'temporaryTitle')} /></label><label>{t(locale, 'description')}<textarea required rows="5" {...field('description')} placeholder={t(locale, 'descriptionHint')} /></label><div className="form-row"><label>{t(locale, 'location')}<input required {...field('location')} placeholder={t(locale, 'locationHint')} /></label><label>{t(locale, 'category')}<select required {...field('category')}>{['TECH','DESIGN','CAREER','COMMUNITY'].map(category => <option key={category} value={category}>{categoryLabel(category, locale)}</option>)}</select></label></div><div className="form-row"><label>{t(locale, 'dateTime')}<input required type="datetime-local" {...field('startsAt')} /></label><label>{t(locale, 'maximum')}<input required type="number" min={event?.registeredCount || 1} {...field('capacity')} /></label></div><div className="ticket-editor"><div className="ticket-editor-heading"><div><strong>{t(locale, 'ticketTypes')}</strong><small>{t(locale, 'ticketQuotaNote')}</small></div><button type="button" className="button button-plain button-small" onClick={() => setForm({ ...form, ticketTypes:[...form.ticketTypes, { name:'', description:'', price:'0', capacity:1 }] })}><Plus size={15} /> {t(locale, 'addTicketType')}</button></div>{form.ticketTypes.map((ticket, index) => <div className="ticket-edit-row" key={ticket.id ?? index}><div className="ticket-edit-top"><strong>0{index + 1}</strong>{form.ticketTypes.length > 1 && <button type="button" onClick={() => setForm({ ...form, ticketTypes: form.ticketTypes.filter((_, ticketIndex) => ticketIndex !== index) })} aria-label="Remove ticket type"><Trash2 size={15} /></button>}</div><label>{t(locale, 'ticketName')}<input required value={ticket.name} onChange={e => changeTicket(index, 'name', e.target.value)} /></label><label>{t(locale, 'ticketDescription')}<input value={ticket.description || ''} onChange={e => changeTicket(index, 'description', e.target.value)} /></label><div className="form-row"><label>{t(locale, 'ticketPrice')}<input required min="0" step="1" type="number" value={ticket.price} onChange={e => changeTicket(index, 'price', e.target.value)} /></label><label>{t(locale, 'ticketQuota')}<input required min="1" type="number" value={ticket.capacity} onChange={e => changeTicket(index, 'capacity', e.target.value)} /></label></div></div>)}</div><p className={`ticket-allocation ${ticketTotal === Number(form.capacity) ? 'valid' : ''}`}>{t(locale, 'ticketPlanTotal', { count: ticketTotal, capacity: form.capacity })}</p>{error && <p className="form-error">{error}</p>}<div className="form-actions"><button type="button" className="button button-plain" onClick={onClose}>{t(locale, 'cancelAction')}</button><button className="button button-dark" disabled={saving}>{saving ? t(locale, 'saving') : event ? t(locale, 'saveChanges') : t(locale, 'createEvent')}</button></div></form>
+    <form onSubmit={submit} className="event-form"><label>{t(locale, 'eventTitle')}<input required autoFocus {...field('title')} placeholder={t(locale, 'temporaryTitle')} /></label><label>{t(locale, 'description')}<textarea required rows="5" {...field('description')} placeholder={t(locale, 'descriptionHint')} /></label><section className="cover-editor"><div><strong><ImageIcon size={16} /> {locale === 'th' ? 'รูปปกอีเวนต์' : 'Event cover image'}</strong><small>{locale === 'th' ? 'เลือกภาพในระบบหรือวาง URL ของรูปภาพ' : 'Choose a built-in visual or paste an image URL.'}</small></div><div className="cover-options">{['/art-design.svg','/art-spring.svg','/art-product.svg','/art-accessibility.svg'].map(src => <button type="button" key={src} className={form.imageUrl === src ? 'active' : ''} onClick={() => setForm({ ...form, imageUrl: src })}><img src={src} alt="" /></button>)}</div><label>{locale === 'th' ? 'URL รูปปก' : 'Cover image URL'}<input value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} placeholder="https://… or /art-design.svg" /></label></section><div className="form-row"><label>{t(locale, 'location')}<input required {...field('location')} placeholder={t(locale, 'locationHint')} /></label><label>{t(locale, 'category')}<select required {...field('category')}>{['TECH','DESIGN','CAREER','COMMUNITY'].map(category => <option key={category} value={category}>{categoryLabel(category, locale)}</option>)}</select></label></div><div className="form-row"><label>{t(locale, 'dateTime')}<input required type="datetime-local" {...field('startsAt')} /></label><label>{t(locale, 'maximum')}<input required type="number" min={event?.registeredCount || 1} {...field('capacity')} /></label></div><div className="ticket-editor"><div className="ticket-editor-heading"><div><strong>{t(locale, 'ticketTypes')}</strong><small>{t(locale, 'ticketQuotaNote')}</small></div><button type="button" className="button button-plain button-small" onClick={() => setForm({ ...form, ticketTypes:[...form.ticketTypes, { name:'', description:'', price:'0', capacity:1 }] })}><Plus size={15} /> {t(locale, 'addTicketType')}</button></div>{form.ticketTypes.map((ticket, index) => <div className="ticket-edit-row" key={ticket.id ?? index}><div className="ticket-edit-top"><strong>0{index + 1}</strong>{form.ticketTypes.length > 1 && <button type="button" onClick={() => setForm({ ...form, ticketTypes: form.ticketTypes.filter((_, ticketIndex) => ticketIndex !== index) })} aria-label="Remove ticket type"><Trash2 size={15} /></button>}</div><label>{t(locale, 'ticketName')}<input required value={ticket.name} onChange={e => changeTicket(index, 'name', e.target.value)} /></label><label>{t(locale, 'ticketDescription')}<input value={ticket.description || ''} onChange={e => changeTicket(index, 'description', e.target.value)} /></label><div className="form-row"><label>{t(locale, 'ticketPrice')}<input required min="0" step="1" type="number" value={ticket.price} onChange={e => changeTicket(index, 'price', e.target.value)} /></label><label>{t(locale, 'ticketQuota')}<input required min="1" type="number" value={ticket.capacity} onChange={e => changeTicket(index, 'capacity', e.target.value)} /></label></div></div>)}</div><p className={`ticket-allocation ${ticketTotal === Number(form.capacity) ? 'valid' : ''}`}>{t(locale, 'ticketPlanTotal', { count: ticketTotal, capacity: form.capacity })}</p>{error && <p className="form-error">{error}</p>}<div className="form-actions"><button type="button" className="button button-plain" onClick={onClose}>{t(locale, 'cancelAction')}</button><button className="button button-dark" disabled={saving || ticketTotal !== Number(form.capacity)}>{saving ? t(locale, 'saving') : event ? t(locale, 'saveChanges') : t(locale, 'createEvent')}</button></div></form>
   </div></div>
 }
 
@@ -453,9 +480,9 @@ function AttendeePanel({ data, onClose, locale }) {
   </div></div>
 }
 
-function LoginModal({ modal, setModal, setUser, refresh, setToast, locale }) {
+function LoginModal({ modal, setModal, setUser, setView, refresh, setToast, locale }) {
   const [email, setEmail] = useState('user@event.local'); const [password, setPassword] = useState('password'); const [error, setError] = useState(''); const [busy, setBusy] = useState(false)
-  async function submit(e) { e.preventDefault(); setBusy(true); setError(''); try { const current = await api.login({ email, password }); setUser(current); await refresh(); setToast({ message: t(locale, 'welcome', { name: current.name.split(' ')[0] }), tone:'success' }); setModal(modal.afterLoginEvent ? { type: 'purchase', event: modal.afterLoginEvent } : null) } catch (err) { setError(err.message === 'Something went wrong. Please try again.' ? t(locale, 'errorCredentials') : err.message); setBusy(false) } }
+  async function submit(e) { e.preventDefault(); setBusy(true); setError(''); try { const current = await api.login({ email, password }); setUser(current); await refresh(); if (!modal.afterLoginEvent && current.role === 'ADMIN') setView('admin'); if (!modal.afterLoginEvent && current.role === 'STAFF') setView('staff'); setToast({ message: t(locale, 'welcome', { name: current.name.split(' ')[0] }), tone:'success' }); setModal(modal.afterLoginEvent ? { type: 'purchase', event: modal.afterLoginEvent } : null) } catch (err) { setError(err.message === 'Something went wrong. Please try again.' ? t(locale, 'errorCredentials') : err.message); setBusy(false) } }
   return <div className="overlay centered" role="presentation"><div className="modal" role="dialog" aria-modal="true" aria-labelledby="login-title"><button className="icon-button modal-close" onClick={() => setModal(null)} aria-label={t(locale, 'close')}><X /></button><div className="login-mark"><TicketCheck /></div><span className="eyebrow">{t(locale, 'memberAccess')}</span><h2 id="login-title">{t(locale, 'signInTitle')}</h2><p>{t(locale, 'signInBody')}</p><form onSubmit={submit}><label>{t(locale, 'email')}<input autoFocus required type="email" value={email} onChange={e => setEmail(e.target.value)} /></label><label>{t(locale, 'password')}<input required type="password" value={password} onChange={e => setPassword(e.target.value)} /></label>{error && <p className="form-error">{error}</p>}<button className="button button-dark full" disabled={busy}>{busy ? t(locale, 'signingIn') : t(locale, 'signIn')}</button></form><div className="demo-note"><strong>{t(locale, 'demoAccounts')}</strong><span>{t(locale, 'userDemo')}</span><span>{t(locale, 'adminDemo')}</span></div></div></div>
 }
 

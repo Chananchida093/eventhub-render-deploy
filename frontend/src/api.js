@@ -26,4 +26,5 @@ export const api = {
   updateEvent: (id, data) => request(`/api/admin/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteEvent: (id) => request(`/api/admin/events/${id}`, { method: 'DELETE' }),
   attendees: (id) => request(`/api/admin/events/${id}/attendees`),
+  checkIn: (ticketCode) => request('/api/staff/check-in', { method: 'POST', body: JSON.stringify({ ticketCode }) }),
 }
