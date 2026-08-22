@@ -32,4 +32,5 @@ export const api = {
   recentCheckIns: (eventId) => request(`/api/staff/events/${eventId}/recent-check-ins`),
   analytics: () => request('/api/admin/analytics'),
   trackVisit: (data) => request('/api/analytics/visit', { method: 'POST', body: JSON.stringify(data) }),
+  uploadImage: async (file) => { const form = new FormData(); form.append('file', file); const response = await fetch('/api/admin/uploads', { method: 'POST', credentials: 'include', body: form }); const body = await response.json().catch(() => ({})); if (!response.ok) throw new Error(body.message || 'Image upload failed'); return body.url },
 }
