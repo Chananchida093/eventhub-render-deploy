@@ -19,6 +19,7 @@ export const api = {
   event: (id) => request(`/api/events/${id}`),
   me: () => request('/api/auth/me'),
   login: (data) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+  signup: (data) => request('/api/auth/signup', { method: 'POST', body: JSON.stringify(data) }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
   registrations: () => request('/api/registrations/me'),
   register: (id, data) => request(`/api/events/${id}/registrations`, { method: 'POST', body: JSON.stringify(data) }),
