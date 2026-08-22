@@ -139,18 +139,33 @@ public class EventService {
     public List<AttendeeDto> attendees(Long eventId) {
         if (!events.existsById(eventId)) throw notFound("Event not found");
         return registrations.findByEventIdOrderByRegisteredAtAsc(eventId).stream()
-                .map(r -> new AttendeeDto(r.getUser().getId(), r.getUser().getName(), r.getUser().getEmail(), r.getRegisteredAt(),
-                        r.getTicketType() == null ? "General admission" : r.getTicketType().getName(), r.getQuantity(), r.getTicketCode())).toList();
+                .map(this::attendeeDto).toList();
     }
 
     @Transactional
     public CheckInDto checkIn(String rawTicketCode) {
+        return checkIn(null, rawTicketCode);
+    }
+
+    @Transactional
+    public CheckInDto checkIn(Long eventId, String rawTicketCode) {
         String ticketCode = rawTicketCode == null ? "" : rawTicketCode.trim().toUpperCase(Locale.ROOT);
         Registration registration = registrations.findByTicketCode(ticketCode).orElseThrow(() -> notFound("Ticket not found"));
+        if (eventId != null && !registration.getEvent().getId().equals(eventId)) throw conflict("This ticket belongs to another event");
         registration.checkIn();
         TicketType ticket = registration.getTicketType();
         return new CheckInDto(registration.getTicketCode(), registration.getUser().getName(), registration.getEvent().getTitle(),
                 ticket == null ? "General admission" : ticket.getName(), registration.getQuantity(), registration.isCheckedIn(), registration.getCheckedInAt());
+    }
+
+    @Transactional(readOnly = true)
+    public List<AttendeeDto> recentCheckIns(Long eventId) {
+        return registrations.findTop8ByEventIdAndCheckedInAtIsNotNullOrderByCheckedInAtDesc(eventId).stream().map(this::attendeeDto).toList();
+    }
+
+    private AttendeeDto attendeeDto(Registration r) {
+        return new AttendeeDto(r.getUser().getId(), r.getUser().getName(), r.getUser().getEmail(), r.getRegisteredAt(),
+                r.getTicketType() == null ? "General admission" : r.getTicketType().getName(), r.getQuantity(), r.getTicketCode(), r.getCheckedInAt());
     }
 
     private EventDto dto(Event event, Long userId) {

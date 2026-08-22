@@ -26,5 +26,7 @@ export const api = {
   updateEvent: (id, data) => request(`/api/admin/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteEvent: (id) => request(`/api/admin/events/${id}`, { method: 'DELETE' }),
   attendees: (id) => request(`/api/admin/events/${id}/attendees`),
-  checkIn: (ticketCode) => request('/api/staff/check-in', { method: 'POST', body: JSON.stringify({ ticketCode }) }),
+  checkIn: (eventId, ticketCode) => request(`/api/staff/events/${eventId}/check-in`, { method: 'POST', body: JSON.stringify({ ticketCode }) }),
+  staffAttendees: (eventId) => request(`/api/staff/events/${eventId}/attendees`),
+  recentCheckIns: (eventId) => request(`/api/staff/events/${eventId}/recent-check-ins`),
 }

@@ -16,6 +16,7 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
     boolean existsByUserIdAndEventId(Long userId, Long eventId);
     List<Registration> findByUserIdOrderByEventStartsAtAsc(Long userId);
     List<Registration> findByEventIdOrderByRegisteredAtAsc(Long eventId);
+    List<Registration> findTop8ByEventIdAndCheckedInAtIsNotNullOrderByCheckedInAtDesc(Long eventId);
     Optional<Registration> findByTicketCode(String ticketCode);
     void deleteByUserIdAndEventId(Long userId, Long eventId);
     void deleteByEventId(Long eventId);

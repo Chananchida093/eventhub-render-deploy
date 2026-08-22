@@ -49,7 +49,7 @@ public final class ApiDtos {
     public record RegistrationDto(Long id, LocalDateTime registeredAt, int quantity, String ticketCode,
                                   String ticketTypeName, BigDecimal totalPrice, EventDto event) {}
     public record AttendeeDto(Long id, String name, String email, LocalDateTime registeredAt,
-                              String ticketType, int quantity, String ticketCode) {}
+                              String ticketType, int quantity, String ticketCode, LocalDateTime checkedInAt) {}
     public record CheckInRequest(@NotBlank @Size(max = 32) String ticketCode) {}
     public record CheckInDto(String ticketCode, String attendeeName, String eventTitle, String ticketType,
                              int quantity, boolean checkedIn, LocalDateTime checkedInAt) {}
