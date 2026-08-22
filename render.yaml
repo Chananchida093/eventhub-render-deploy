@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: gather-event-registration
+    name: gather-event-registration-v2
     runtime: docker
     plan: free
     region: singapore
